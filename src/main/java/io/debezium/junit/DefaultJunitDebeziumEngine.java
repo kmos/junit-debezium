@@ -49,8 +49,8 @@ class DefaultJunitDebeziumEngine implements JunitDebeziumEngine {
                                Map<String, String> configuration,
                                ConnectorCallback connectorCallback
     ) {
-        this.configuration = createConfiguration(configuration);
         this.sourceConnectorClass = sourceConnectorClass;
+        this.configuration = createConfiguration(configuration, sourceConnectorClass);
 
         if (connectorCallback == null) {
             this.engine = DebeziumEngine.create(ChangeEventFormat.of(Connect.class))
@@ -66,7 +66,7 @@ class DefaultJunitDebeziumEngine implements JunitDebeziumEngine {
         this.engine = DebeziumEngine.create(ChangeEventFormat.of(Connect.class))
                 .using(this.configuration.asProperties())
                 .using(getClass().getClassLoader())
-                .using(new ComposableCallbacks(List.of(new JunitEngineCallback(), junitEngineCallback)))
+                .using(new ComposableCallbacks(List.of(new JunitEngineCallback(), connectorCallback)))
                 .notifying((ignore) -> {
                 })
                 .build();
@@ -93,10 +93,10 @@ class DefaultJunitDebeziumEngine implements JunitDebeziumEngine {
     }
 
 
-    private Configuration createConfiguration(Map<String, String> externalConfiguration) {
+    private Configuration createConfiguration(Map<String, String> externalConfiguration, Class<?> clazz) {
         if (externalConfiguration == null) {
             return Configuration.from(baseConfiguration).edit()
-                    .with(EmbeddedEngineConfig.CONNECTOR_CLASS, sourceConnectorClass)
+                    .with(EmbeddedEngineConfig.CONNECTOR_CLASS, clazz)
                     .build();
         }
 
@@ -105,7 +105,7 @@ class DefaultJunitDebeziumEngine implements JunitDebeziumEngine {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (v1, v2) -> v1));
 
         return Configuration.from(mergedConfiguration).edit()
-                .with(EmbeddedEngineConfig.CONNECTOR_CLASS, sourceConnectorClass)
+                .with(EmbeddedEngineConfig.CONNECTOR_CLASS, clazz)
                 .build();
     }
 
