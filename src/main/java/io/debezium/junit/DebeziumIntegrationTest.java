@@ -8,6 +8,8 @@ import java.lang.annotation.Target;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import io.debezium.engine.DebeziumEngine;
+
 @Target(ElementType.TYPE)
 @ExtendWith({ DebeziumTestEngineExtension.class })
 @Retention(RetentionPolicy.RUNTIME)
@@ -17,4 +19,7 @@ public @interface DebeziumIntegrationTest {
     Class<? extends DebeziumTestResourceLifecycleManager>[] resources() default {};
 
     DebeziumConfiguration[] configuration() default {};
+
+    Class<? extends DebeziumEngine.ConnectorCallback> connectorCallback() default NoOpConnectorCallback.class;
+
 }

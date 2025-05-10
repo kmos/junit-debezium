@@ -4,6 +4,7 @@ import static io.debezium.embedded.EmbeddedEngineConfig.OFFSET_STORAGE;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,6 +33,8 @@ class DefaultJunitDebeziumEngine implements JunitDebeziumEngine {
 
     private final Class<?> sourceConnectorClass;
     private final static Map<String, String> baseConfiguration;
+    private final JunitEngineCallback junitEngineCallback = new JunitEngineCallback();
+
     static {
         baseConfiguration = new HashMap<>();
         baseConfiguration.put(EmbeddedEngineConfig.ENGINE_NAME.name(), "testing-connector");
@@ -39,17 +42,33 @@ class DefaultJunitDebeziumEngine implements JunitDebeziumEngine {
         baseConfiguration.put(EmbeddedEngineConfig.OFFSET_FLUSH_INTERVAL_MS.name(), String.valueOf(100));
         baseConfiguration.put(OFFSET_STORAGE.name(), "org.apache.kafka.connect.storage.MemoryOffsetBackingStore");
     }
-
     private final Configuration configuration;
 
-    DefaultJunitDebeziumEngine(Class<? extends SourceConnector> sourceConnectorClass, Map<String, String> configuration) {
-        this.sourceConnectorClass = sourceConnectorClass;
+
+    DefaultJunitDebeziumEngine(Class<? extends SourceConnector> sourceConnectorClass,
+                               Map<String, String> configuration,
+                               ConnectorCallback connectorCallback
+    ) {
         this.configuration = createConfiguration(configuration);
+        this.sourceConnectorClass = sourceConnectorClass;
+
+        if (connectorCallback == null) {
+            this.engine = DebeziumEngine.create(ChangeEventFormat.of(Connect.class))
+                    .using(this.configuration.asProperties())
+                    .using(getClass().getClassLoader())
+                    .using(this.junitEngineCallback)
+                    .notifying((ignore) -> {
+                    })
+                    .build();
+            return;
+        }
+
         this.engine = DebeziumEngine.create(ChangeEventFormat.of(Connect.class))
                 .using(this.configuration.asProperties())
                 .using(getClass().getClassLoader())
-                .using(connectorCallback)
-                .notifying((ignore) -> {})
+                .using(new ComposableCallbacks(List.of(new JunitEngineCallback(), junitEngineCallback)))
+                .notifying((ignore) -> {
+                })
                 .build();
     }
 
@@ -91,28 +110,48 @@ class DefaultJunitDebeziumEngine implements JunitDebeziumEngine {
     }
 
 
-    ConnectorCallback connectorCallback = new ConnectorCallback() {
-
-        @Override
-        public void connectorStarted() {
-            // it should never happen we run the callback on already running engine
-            isEngineRunning.compareAndExchange(false, true);
-        }
-
-        @Override
-        public void connectorStopped() {
-            // while it can happen that stop callback is called on engine which doesn't run (e.g. when exception is thrown during the start)
-            isEngineRunning.set(false);
-        }
-    };
-
     @Override
     public boolean isRunning() {
-        return isEngineRunning.get();
+        return junitEngineCallback.isRunning();
     }
 
     @Override
     public String getConfigurationValue(String key) {
         return configuration.getString(key);
+    }
+
+    private class JunitEngineCallback implements ConnectorCallback {
+
+        @Override
+        public void connectorStarted() {
+            isEngineRunning.compareAndExchange(false, true);
+        }
+
+        @Override
+        public void connectorStopped() {
+            isEngineRunning.set(false);
+        }
+
+        public boolean isRunning() {
+            return isEngineRunning.get();
+        }
+    }
+
+    private static class ComposableCallbacks implements ConnectorCallback {
+        private final List<ConnectorCallback> callbacks;
+
+        private ComposableCallbacks(List<ConnectorCallback> callbacks) {
+            this.callbacks = callbacks;
+        }
+
+        @Override
+        public void connectorStarted() {
+            callbacks.forEach(ConnectorCallback::connectorStarted);
+        }
+
+        @Override
+        public void connectorStopped() {
+            callbacks.forEach(ConnectorCallback::connectorStopped);
+        }
     }
 }

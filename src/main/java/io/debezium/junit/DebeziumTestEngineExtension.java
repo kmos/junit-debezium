@@ -22,6 +22,8 @@ import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 import org.junit.jupiter.api.extension.TestInstancePostProcessor;
 
+import io.debezium.engine.DebeziumEngine.ConnectorCallback;
+
 public class DebeziumTestEngineExtension implements BeforeAllCallback, AfterAllCallback, ExecutionCondition, TestInstancePostProcessor, ParameterResolver {
 
     private JunitDebeziumEngine engine;
@@ -68,14 +70,18 @@ public class DebeziumTestEngineExtension implements BeforeAllCallback, AfterAllC
                 .orElse(ConditionEvaluationResult.disabled("SourceConnector not found"));
     }
 
-    private Optional<JunitDebeziumEngine> getEngineProcess(Class<?> testClass, Map<String, String> configuration) {
+    private Optional<JunitDebeziumEngine> getEngineProcess(Class<?> testClass, Map<String, String> configuration) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
         DebeziumIntegrationTest annotation = testClass.getAnnotation(DebeziumIntegrationTest.class);
 
         if (annotation == null) {
             return Optional.empty();
         }
 
-        return Optional.of(new DefaultJunitDebeziumEngine(annotation.value(), configuration));
+        ConnectorCallback connectorCallback = annotation.connectorCallback()
+                .getDeclaredConstructor()
+                .newInstance();
+
+        return Optional.of(new DefaultJunitDebeziumEngine(annotation.value(), configuration, connectorCallback));
 
     }
 
@@ -118,7 +124,14 @@ public class DebeziumTestEngineExtension implements BeforeAllCallback, AfterAllC
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (v1, v2) -> v1));
 
         engine = context.getTestClass()
-                .flatMap(a -> getEngineProcess(a, mergedConfiguration))
+                .flatMap(clazz -> {
+                    try {
+                        return getEngineProcess(clazz, mergedConfiguration);
+                    } catch (NoSuchMethodException | InvocationTargetException | InstantiationException |
+                             IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
                 .orElseThrow();
 
         engine.run();
