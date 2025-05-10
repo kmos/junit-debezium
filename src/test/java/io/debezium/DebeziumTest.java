@@ -1,8 +1,9 @@
 package io.debezium;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.jupiter.api.BeforeEach;
+
 import org.junit.jupiter.api.Test;
 
 import io.debezium.connector.postgresql.PostgresConnector;
@@ -18,19 +19,13 @@ import io.debezium.junit.JunitDebeziumEngine;
             @DebeziumConfiguration(name = "aKey", value = "aValue"),
             @DebeziumConfiguration(name = "anotherKey", value = "anotherValue")
         })
-public class AppTest {
-
-    @BeforeEach
-    public void beforeEach(JunitDebeziumEngine engine) {
-        System.out.println(engine);
-    }
+public class DebeziumTest {
 
     /**
      * Rigorous Test :-)
      */
     @Test
-    public void shouldAnswerWithTrue() throws InterruptedException {
-        Thread.sleep(10000);
-        assertTrue(true);
+    public void shouldEngineRunning(JunitDebeziumEngine engine) {
+        assertThat(engine.isRunning()).isTrue();
     }
 }

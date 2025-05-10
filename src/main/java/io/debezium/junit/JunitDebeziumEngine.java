@@ -7,4 +7,6 @@ import io.debezium.engine.RecordChangeEvent;
 
 public interface JunitDebeziumEngine extends DebeziumEngine<RecordChangeEvent<SourceRecord>> {
     boolean isRunning();
+
+    String getConfigurationValue(String key);
 }

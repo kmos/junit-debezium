@@ -40,10 +40,13 @@ class DefaultJunitDebeziumEngine implements JunitDebeziumEngine {
         baseConfiguration.put(OFFSET_STORAGE.name(), "org.apache.kafka.connect.storage.MemoryOffsetBackingStore");
     }
 
+    private final Configuration configuration;
+
     DefaultJunitDebeziumEngine(Class<? extends SourceConnector> sourceConnectorClass, Map<String, String> configuration) {
         this.sourceConnectorClass = sourceConnectorClass;
+        this.configuration = createConfiguration(configuration);
         this.engine = DebeziumEngine.create(ChangeEventFormat.of(Connect.class))
-                .using(createConfiguration(configuration).asProperties())
+                .using(this.configuration.asProperties())
                 .using(getClass().getClassLoader())
                 .using(connectorCallback)
                 .notifying((ignore) -> {})
@@ -106,5 +109,10 @@ class DefaultJunitDebeziumEngine implements JunitDebeziumEngine {
     @Override
     public boolean isRunning() {
         return isEngineRunning.get();
+    }
+
+    @Override
+    public String getConfigurationValue(String key) {
+        return configuration.getString(key);
     }
 }
