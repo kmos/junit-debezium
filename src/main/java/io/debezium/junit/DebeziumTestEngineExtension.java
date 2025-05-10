@@ -24,7 +24,7 @@ import org.junit.jupiter.api.extension.TestInstancePostProcessor;
 
 import io.debezium.engine.DebeziumEngine.ConnectorCallback;
 
-public class DebeziumTestEngineExtension implements BeforeAllCallback, AfterAllCallback, ExecutionCondition, TestInstancePostProcessor, ParameterResolver {
+public class DebeziumTestEngineExtension implements BeforeAllCallback, AfterAllCallback, ExecutionCondition, ParameterResolver {
 
     private JunitDebeziumEngine engine;
     private List<DebeziumTestResourceLifecycleManager> resources;
@@ -83,10 +83,6 @@ public class DebeziumTestEngineExtension implements BeforeAllCallback, AfterAllC
 
         return Optional.of(new DefaultJunitDebeziumEngine(annotation.value(), configuration, connectorCallback));
 
-    }
-
-    @Override
-    public void postProcessTestInstance(Object testInstance, ExtensionContext context) throws Exception {
     }
 
     @Override
