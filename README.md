@@ -185,4 +185,6 @@ Most commonly, you deploy Debezium by means of Apache Kafka Connect. Kafka Conne
 - Source connectors such as Debezium that send records into Kafka
 - Sink connectors that propagate records from Kafka topics to other systems
 
+![example](./docs/images/dbz_test2.png)
+
 [...]
