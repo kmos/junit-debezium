@@ -1,7 +1,13 @@
 # junit-debezium
 
-Junit5 extension for Debezium Connectors. Strongly inspired by [testing in quarkus](https://quarkus.io/guides/getting-started-testing).
+JUnit5 extension for Debezium Connectors. Strongly inspired by [testing in quarkus](https://quarkus.io/guides/getting-started-testing).
 
+## Requirements
+
+- Docker - please see [General Docker requirements for test containers](https://java.testcontainers.org/supported_docker_environment/)
+- Java 21
+- Jupiter / JUnit 5
+- maven / gradle
 
 ## Installation
 
