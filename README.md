@@ -139,7 +139,7 @@ public class DebeziumConnectorTest {
 It's possible to override Debezium callback with the annotation:
 
 ```java
-@DebeziumIntegrationTest(value = ConnectorUnderTest.class, resources = { PostgresResource.class },
+@DebeziumIntegrationTest(value = ConnectorUnderTest.class, resources = { TestResource.class },
         connectorCallback = ExampleCallback.class)
 public class DebeziumConnectorTest {
     private final ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
