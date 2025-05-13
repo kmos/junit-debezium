@@ -30,7 +30,7 @@ class KafkaContainerHandler implements DebeziumTestResourceLifecycleManager {
             .withNetwork(network);
 
     public static DebeziumContainer connectContainer = new DebeziumContainer(CONNECT_IMAGE)
-            .withFileSystemBind("target/kcetcd-connector", "/kafka/connect/test-connector")
+            .withFileSystemBind("target/test-connector", "/kafka/connect/test-connector")
             .withNetwork(network)
             .withKafka(kafkaContainer)
             .dependsOn(kafkaContainer);
@@ -41,7 +41,7 @@ class KafkaContainerHandler implements DebeziumTestResourceLifecycleManager {
 
         ConnectorConfiguration connector = ConnectorConfiguration
                 .from(Collections.emptyMap())
-                .with("connector.class", "dev.morling.kcetcd.source.EtcdSourceConnector")
+                .with("connector.class", "example")
                 .with("clusters", "test-etcd=http://etcd:2379")
                 .with("tasks.max", "2")
                 .with("key.converter", "org.apache.kafka.connect.storage.StringConverter")

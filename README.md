@@ -1,6 +1,6 @@
 # junit-debezium
 
-Library that simplify the testing for Debezium Connectors.
+Junit5 extension for Debezium Connectors. Strongly inspired by [testing in quarkus](https://quarkus.io/guides/getting-started-testing).
 
 
 ## Installation
@@ -19,44 +19,34 @@ add the dependency in your `pom.xml`:
 In debezium there are two kind of test (both [integration](https://martinfowler.com/articles/practical-test-pyramid.html)):
 
 - `DebeziumIntegrationTest`: tests against `source -> connector -> debezium engine`
-- `KafkaConnectIntegrationTest`: tests agains `source -> connector-> kafka connect`
+- `KafkaConnectIntegrationTest`: tests against `source -> connector-> kafka connect`
 
-These tests exists because Debezium Connectors can work in `Debezium Server` or in `Kafka Connect`.
+## Debezium Integration Test
 
-## Usage
+Debezium Integration Test is a kind of test that verify the interaction between a _`Connector under test`_ and _Debezium Engine_.
 
-here an example of `KafkaConnectIntegrationTest`:
+![example](./docs/images/dbz_test1.png)
+
+### 1.Quick Start
+
+To test a Connector, annotate your test with `@DebeziumIntegrationTest` add the connector under test and a source in this way:
 
 ```java
-@DebeziumIntegrationTest(value = PostgresConnector.class, resources = { PostgresResource.class },
-        configuration =  {
-            @DebeziumConfiguration(name = "aKey", value = "aValue"),
-            @DebeziumConfiguration(name = "anotherKey", value = "anotherValue")
-        },
-        connectorCallback = ExampleCallback.class)
+@DebeziumIntegrationTest(value = ConnectorUnderTest.class, resources = { TestResource.class })
 public class DebeziumConnectorTest {
 
     @Test
     @DisplayName("should debezium engine running with additional configuration")
-    public void shouldEngineRunningWithAdditionalConfiguration(JunitDebeziumEngine engine) {
-        assertThat(engine.getConfigurationValue("aKey")).isEqualTo("aValue");
-        assertThat(engine.getConfigurationValue("anotherKey")).isEqualTo("anotherValue");
-
-        assertThat(engine.isRunning()).isTrue();
+    public void shouldEngineRunningWithAdditionalConfiguration() {
+        // something happens...
     }
 }
 ```
 
-in the `@DebeziumIntegrationTest` you define:
-
-- the connector (in the example `PostgresConnector.class`)
-- additional configuration for the correct work of `debezium engine`
-- the resources necessary to execute the correct test (usually the source in which the connector is capturing events)
-
-a Debezium Resource should implements `DebeziumTestResourceLifecycle` as follow:
+a source can be defined as a `DebeziumTestResourceLifecycleManager` in this way:
 
 ```java
-public class PostgresResource implements DebeziumTestResourceLifecycleManager {
+public class TestResource implements DebeziumTestResourceLifecycleManager {
     private static final String POSTGRES_IMAGE = "quay.io/debezium/postgres:15";
 
     private static final DockerImageName POSTGRES_DOCKER_IMAGE_NAME = DockerImageName.parse(POSTGRES_IMAGE)
@@ -101,6 +91,98 @@ public class PostgresResource implements DebeziumTestResourceLifecycleManager {
 }
 ```
 
-It's possible to inject also callbacks for testing purpose.
+### 2. Get Debezium
 
-`KafkaConnectIntegrationTest` works in the same way with same parameters.
+It's possible to get an engine instance inside the test in this way:
+
+```java
+@DebeziumIntegrationTest(value = ConnectorUnderTest.class, resources = { TestResource.class },
+        configuration =  {
+            @DebeziumConfiguration(name = "aKey", value = "aValue"),
+            @DebeziumConfiguration(name = "anotherKey", value = "anotherValue")
+        })
+public class DebeziumConnectorTest {
+
+    @Test
+    @DisplayName("should debezium engine running inside the test")
+    public void shouldEngineRunningWithAdditionalConfiguration(JunitDebeziumEngine engine) {
+        assertThat(engine.isRunning()).isTrue();
+    }
+}
+```
+
+### 3. Add additional configuration
+
+It's possible to override or inject additional configuration to debezium using the configuration parameter:
+
+```java
+@DebeziumIntegrationTest(value = ConnectorUnderTest.class, resources = { TestResource.class },
+        configuration =  {
+            @DebeziumConfiguration(name = "aKey", value = "aValue"),
+            @DebeziumConfiguration(name = "anotherKey", value = "anotherValue")
+        })
+public class DebeziumConnectorTest {
+
+    @Test
+    @DisplayName("should debezium engine running with additional configuration")
+    public void shouldEngineRunningWithAdditionalConfiguration(JunitDebeziumEngine engine) {
+        assertThat(engine.getConfigurationValue("aKey")).isEqualTo("aValue");
+        assertThat(engine.getConfigurationValue("anotherKey")).isEqualTo("anotherValue");
+
+        assertThat(engine.isRunning()).isTrue();
+    }
+}
+```
+
+### 4. Override callback
+
+It's possible to override Debezium callback with the annotation:
+
+```java
+@DebeziumIntegrationTest(value = ConnectorUnderTest.class, resources = { PostgresResource.class },
+        connectorCallback = ExampleCallback.class)
+public class DebeziumConnectorTest {
+    private final ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+
+    @BeforeEach
+    void setUp() {
+        logWatcher.start();
+    }
+
+    @Test
+    @DisplayName("should debezium engine running with callback")
+    void shouldEngineRunningWithCallback() {
+        Logger logger = (Logger) LoggerFactory.getLogger(ExampleCallback.class);
+        logger.addAppender(logWatcher);
+
+        given().ignoreException(NoSuchElementException.class)
+                .await()
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(logWatcher.list.getFirst().getFormattedMessage())
+                        .isEqualTo("Example Callback invoked"));
+
+        logger.detachAppender(logWatcher);
+    }
+}
+```
+
+```java
+public class ExampleCallback implements ConnectorCallback {
+    private static final Logger logger = LoggerFactory.getLogger(ExampleCallback.class);
+
+    @Override
+    public void connectorStarted() {
+        logger.info("Example Callback invoked");
+    }
+
+}
+```
+
+## Kafka Connect Integration Test
+
+Most commonly, you deploy Debezium by means of Apache Kafka Connect. Kafka Connect is a framework and runtime for implementing and operating:
+
+- Source connectors such as Debezium that send records into Kafka
+- Sink connectors that propagate records from Kafka topics to other systems
+
+[...]
